@@ -175,6 +175,7 @@ Logo is done by [**Xphalnos**](https://github.com/Xphalnos)
 
 If you want to contribute, please read the [**CONTRIBUTING.md**](https://github.com/shadps4-emu/shadPS4/blob/main/CONTRIBUTING.md) file.\
 Open a PR and we'll check it :)
+hi
 
 
 # Special Thanks
