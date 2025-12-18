@@ -171,7 +171,8 @@ int PS4_SYSV_ABI sceHttpCreateConnection() {
 int PS4_SYSV_ABI sceHttpCreateConnectionWithURL(int tmplId, const char* url, bool enableKeepalive) {
     LOG_ERROR(Lib_Http, "(STUBBED) called tmpid = {} url = {} enableKeepalive = {}", tmplId,
               std::string(url), enableKeepalive ? 1 : 0);
-    return ORBIS_OK;
+    static int id = 5;
+    return tmplId;
 }
 
 int PS4_SYSV_ABI sceHttpCreateEpoll(int libhttpCtxId, OrbisHttpEpollHandle* eh) {
@@ -240,7 +241,7 @@ int PS4_SYSV_ABI sceHttpCreateTemplate(s32 conn_id, const char* user_agent, s32 
     LOG_INFO(Lib_Http, "called, conn id: '{}', user agent: '{}', http version: '{}', flags: '{}'", 
         conn_id, user_agent, http_v, flags);
 
-    static s32 template_counter = 0;
+    static s32 template_counter = 1;
     	
     s32 template_id = template_counter++;
 
