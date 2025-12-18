@@ -338,6 +338,18 @@ private:
             response = cli.Delete(path, headers);
             break;
 
+        case ORBIS_HTTP_REQUEST_METHOD_HEAD:
+            response = cli.Head(path);
+            break;
+
+        case ORBIS_HTTP_REQUEST_METHOD_OPTIONS:
+            response = cli.Options(path);
+            break;
+
+        case ORBIS_HTTP_REQUEST_METHOD_PUT:
+            response = cli.Put(path);
+            break;
+
         default:
         case ORBIS_HTTP_REQUEST_METHOD_INVALID:
             LOG_ERROR(Lib_Http, "Invalid HTTP method");

@@ -40,7 +40,7 @@ std::string ReplaceHost(std::string url, const std::string& new_host, bool force
 
     url.replace(host_start, host_end - host_start, new_host);
 
-    if (force_http) {
+    if (force_http && url.find("https") != std::string::npos) {
         if (protocol_pos != std::string::npos) {
 
             url.replace(0, protocol_pos, "http");
@@ -345,6 +345,12 @@ int PS4_SYSV_ABI sceHttpGetAllResponseHeaders(int reqId, char** header, u64* hea
 
         return ORBIS_HTTP_ERROR_INVALID_VALUE;
     }
+
+    if (it->second.IsCompleted() == false)
+    {
+        return ORBIS_HTTP_ERROR_BEFORE_SEND;
+    }
+
     uintptr_t a = (uintptr_t)it->second.GetResultHeaders();
     uintptr_t b = (uintptr_t)header;
     LOG_INFO(Lib_Http, "{} {} {} {}", (void*)it->second.GetResultHeaders(),
