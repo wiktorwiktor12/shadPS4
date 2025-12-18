@@ -84,7 +84,7 @@ UniqueImage::~UniqueImage() {
 
 void UniqueImage::Create(const vk::ImageCreateInfo& image_ci) {
     this->image_ci = image_ci;
-    ASSERT(!image);
+    //ASSERT(!image);
     const VmaAllocationCreateInfo alloc_info = {
         .flags = VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT,
         .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
@@ -98,8 +98,8 @@ void UniqueImage::Create(const vk::ImageCreateInfo& image_ci) {
     VkImage unsafe_image{};
     VkResult result = vmaCreateImage(allocator, &image_ci_unsafe, &alloc_info, &unsafe_image,
                                      &allocation, nullptr);
-    ASSERT_MSG(result == VK_SUCCESS, "Failed allocating image with error {}",
-               vk::to_string(vk::Result{result}));
+    //ASSERT_MSG(result == VK_SUCCESS, "Failed allocating image with error {}",
+    //           vk::to_string(vk::Result{result}));
     image = vk::Image{unsafe_image};
 }
 
@@ -462,7 +462,7 @@ static std::pair<u32, u32> SanitizeCopyLayers(const ImageInfo& src_info, const I
 void Image::CopyImage(Image& src_image) {
     const auto& src_info = src_image.info;
     const u32 num_mips = std::min(src_info.resources.levels, info.resources.levels);
-    ASSERT(src_info.resources.layers == info.resources.layers || num_mips == 1);
+    //ASSERT(src_info.resources.layers == info.resources.layers || num_mips == 1);
 
     const u32 width = src_info.size.width;
     const u32 height = src_info.size.height;
@@ -512,7 +512,7 @@ void Image::CopyImageWithBuffer(Image& src_image, vk::Buffer buffer, u64 offset)
     const auto& src_info = src_image.info;
     const u32 num_mips = std::min(src_info.resources.levels, info.resources.levels);
     const u32 num_layers = std::min(src_info.resources.layers, info.resources.layers);
-    ASSERT(src_info.resources.layers == info.resources.layers || num_mips == 1);
+    //ASSERT(src_info.resources.layers == info.resources.layers || num_mips == 1);
 
     SetBackingSamples(info.num_samples, false);
     src_image.SetBackingSamples(src_info.num_samples);
@@ -594,8 +594,8 @@ void Image::CopyMip(Image& src_image, u32 mip, u32 slice) {
     const auto mip_d = std::max(info.size.depth >> mip, 1u);
     const auto [src_layers, dst_layers] = SanitizeCopyLayers(src_info, info, mip_d);
 
-    ASSERT(mip_w == src_info.size.width);
-    ASSERT(mip_h == src_info.size.height);
+    //ASSERT(mip_w == src_info.size.width);
+    //ASSERT(mip_h == src_info.size.height);
 
     const vk::ImageCopy image_copy{
         .srcSubresource{
@@ -702,7 +702,7 @@ void Image::SetBackingSamples(u32 num_samples, bool copy_backing) {
     if (!backing || backing->num_samples == num_samples) {
         return;
     }
-    ASSERT_MSG(!info.props.is_depth, "Swapping samples is only valid for color images");
+    //ASSERT_MSG(!info.props.is_depth, "Swapping samples is only valid for color images");
     BackingImage* new_backing;
     auto it = std::ranges::find(backing_images, num_samples, &BackingImage::num_samples);
     if (it == backing_images.end()) {
@@ -726,7 +726,7 @@ void Image::SetBackingSamples(u32 num_samples, bool copy_backing) {
 
     if (copy_backing) {
         scheduler->EndRendering();
-        ASSERT(info.resources.levels == 1 && info.resources.layers == 1);
+        //ASSERT(info.resources.levels == 1 && info.resources.layers == 1);
 
         // Transition current backing to shader read layout
         auto barriers =

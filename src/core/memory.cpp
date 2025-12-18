@@ -752,7 +752,7 @@ u64 MemoryManager::UnmapBytesFromEntry(VAddr virtual_addr, VirtualMemoryArea vma
         // Unmap the memory region.
         impl.Unmap(vma_base_addr, vma_base_size, start_in_vma, start_in_vma + adjusted_size,
                    phys_base, is_exec, has_backing, readonly_file);
-        TRACK_FREE(virtual_addr, "VMEM");
+        //TRACK_FREE(virtual_addr, "VMEM");
     }
     return adjusted_size;
 }

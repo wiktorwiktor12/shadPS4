@@ -345,6 +345,65 @@ int PS4_SYSV_ABI sys_send(OrbisNetId s, const void* buf, u64 len, int flags) {
     return sys_sendto(s, buf, len, flags, nullptr, 0);
 }
 
+#define FBSD_MSG_OOB 0x00000001
+#define FBSD_MSG_PEEK 0x00000002
+#define FBSD_MSG_DONTROUTE 0x00000004
+#define FBSD_MSG_EOR 0x00000008
+#define FBSD_MSG_TRUNC 0x00000010
+#define FBSD_MSG_CTRUNC 0x00000020
+#define FBSD_MSG_WAITALL 0x00000040
+#define FBSD_MSG_DONTWAIT 0x00000080
+#define FBSD_MSG_EOF 0x00000100
+#define FBSD_MSG_NOTIFICATION 0x00002000
+#define FBSD_MSG_NBIO 0x00004000
+#define FBSD_MSG_COMPAT 0x00008000
+#define FBSD_MSG_SOCALLBCK 0x00010000
+#define FBSD_MSG_NOSIGNAL 0x00020000
+#define FBSD_MSG_CMSG_CLOEXEC 0x00040000
+#define FBSD_MSG_WAITFORONE 0x00080000
+#define FBSD_MSG_MORETOCOME 0x00100000
+#define FBSD_MSG_TLSAPPDATA 0x00200000
+#define FBSD_MSG_CMSG_CLOFORK 0x00400000
+
+int translate_freebsd_flags_to_linux(int fbsd_flags) {
+    int linux_flags = 0;
+
+    if (fbsd_flags & FBSD_MSG_OOB)
+        linux_flags |= MSG_OOB;
+
+    if (fbsd_flags & FBSD_MSG_PEEK)
+        linux_flags |= MSG_PEEK;
+
+    if (fbsd_flags & FBSD_MSG_DONTROUTE)
+        linux_flags |= MSG_DONTROUTE;
+
+    if (fbsd_flags & FBSD_MSG_TRUNC)
+        linux_flags |= MSG_TRUNC;
+
+    if (fbsd_flags & FBSD_MSG_CTRUNC)
+        linux_flags |= MSG_CTRUNC;
+
+    if (fbsd_flags & FBSD_MSG_WAITALL)
+        linux_flags |= MSG_WAITALL;
+
+    /* if (fbsd_flags & FBSD_MSG_DONTWAIT)
+        linux_flags |= MSG_DONTWAIT;
+
+    if (fbsd_flags & FBSD_MSG_EOR)
+        linux_flags |= MSG_EOR;
+
+    if (fbsd_flags & FBSD_MSG_NOSIGNAL)
+        linux_flags |= MSG_NOSIGNAL;
+
+    if (fbsd_flags & FBSD_MSG_WAITFORONE)
+        linux_flags |= MSG_WAITFORONE;
+
+    if (fbsd_flags & FBSD_MSG_EOF)
+        linux_flags |= MSG_FIN;*/
+
+    return linux_flags;
+}
+
 int PS4_SYSV_ABI sys_sendto(OrbisNetId s, const void* buf, u64 len, int flags,
                             const OrbisNetSockaddr* addr, u32 addrlen) {
     auto file = FDTable::Instance()->GetSocket(s);
@@ -353,7 +412,15 @@ int PS4_SYSV_ABI sys_sendto(OrbisNetId s, const void* buf, u64 len, int flags,
         LOG_ERROR(Lib_Net, "socket id is invalid = {}", s);
         return -1;
     }
-    LOG_DEBUG(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
+    LOG_INFO(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
+
+    //TODO: TRANSLATE FLAGS PROPERLY
+
+    //for (int i = 0; i < len; ++i)
+    //{
+    //    LOG_INFO(Lib_Net, "{}: {}", i, (reinterpret_cast<const char*>(buf)[i]));
+    //}
+    flags = translate_freebsd_flags_to_linux(flags);
     int returncode = file->socket->SendPacket(buf, len, flags, addr, addrlen);
     if (returncode >= 0) {
         return returncode;
@@ -370,6 +437,7 @@ int PS4_SYSV_ABI sys_sendmsg(OrbisNetId s, const OrbisNetMsghdr* msg, int flags)
         return -1;
     }
     LOG_DEBUG(Lib_Net, "s = {} ({}), flags = {:#x}", s, file->m_guest_name, flags);
+    flags = translate_freebsd_flags_to_linux(flags);
     int returncode = file->socket->SendMessage(msg, flags);
     if (returncode >= 0) {
         return returncode;
@@ -390,7 +458,9 @@ s64 PS4_SYSV_ABI sys_recvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orbis
         LOG_ERROR(Lib_Net, "socket id is invalid = {}", s);
         return -1;
     }
-    LOG_DEBUG(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
+
+    LOG_INFO(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
+    flags = translate_freebsd_flags_to_linux(flags);
     int returncode = file->socket->ReceivePacket(buf, len, flags, addr, paddrlen);
     if (returncode >= 0) {
         return returncode;
@@ -408,6 +478,7 @@ s64 PS4_SYSV_ABI sys_recvmsg(OrbisNetId s, OrbisNetMsghdr* msg, int flags) {
         return -1;
     }
     LOG_DEBUG(Lib_Net, "s = {} ({}), flags = {:#x}", s, file->m_guest_name, flags);
+    flags = translate_freebsd_flags_to_linux(flags);
     int returncode = file->socket->ReceiveMessage(msg, flags);
     if (returncode >= 0) {
         return returncode;

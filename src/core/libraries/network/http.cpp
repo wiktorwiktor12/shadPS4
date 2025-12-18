@@ -17,7 +17,7 @@ static std::mutex g_templates_map_mutex;
 static std::mutex g_requests_map_mutex;
 static std::mutex g_polls_map_mutex;
 
-std::string host_override = "localhost";
+std::string host_override = "localhost:3000";
 
 //TODO check ptrs
 // TODO check return codes for send request, get content length, read data...

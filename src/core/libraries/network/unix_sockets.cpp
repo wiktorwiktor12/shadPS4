@@ -75,6 +75,7 @@ static int ConvertReturnErrorCode(int retval) {
             // ERROR_CASE(ENOSTR)
             // ERROR_CASE(ETIME)
 #endif
+                
             ERROR_CASE(EINTR)
             ERROR_CASE(EBADF)
             ERROR_CASE(EACCES)

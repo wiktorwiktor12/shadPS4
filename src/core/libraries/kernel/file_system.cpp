@@ -1201,7 +1201,7 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set_posix* readfds, fd_set_posix* wri
             *__Error() = POSIX_EBADF;
             return -1;
         }
-
+        LOG_DEBUG(Kernel_Fs, "file->type {}", (int)file->type.load());
         s32 native_fd = -1;
         switch (file->type) {
         case Core::FileSys::FileType::Regular:
@@ -1241,6 +1241,9 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set_posix* readfds, fd_set_posix* wri
                 FD_SET(native_fd, &except_host);
             }
             socket_max_fd = std::max(socket_max_fd, native_fd);
+            LOG_DEBUG(Kernel_Fs,
+                     "socket want_read {} want_write {}, want_except {} native_fd {}, max_fd {}",
+                     (int)want_read, (int)want_write, (int)want_except, native_fd, socket_max_fd);
         }
 
         if (native_fd == -1) {
