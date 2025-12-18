@@ -31,12 +31,49 @@ struct OrbisHttpUriElement {
     u16 port;
     u8 reserved[10];
 };
+typedef void* OrbisHttpEpollHandle;
+typedef struct OrbisHttpNBEvent {
+    uint32_t events;
+    uint32_t eventDetail;
+    int id;
+    void* userArg;
+} OrbisHttpNBEvent;
+
+#define ORBIS_HTTP_NB_EVENT_IN 0x00000001
+#define ORBIS_HTTP_NB_EVENT_OUT 0x00000002
+#define ORBIS_HTTP_NB_EVENT_SOCK_ERR 0x00000008
+#define ORBIS_HTTP_NB_EVENT_HUP 0x00000010
+#define ORBIS_HTTP_NB_EVENT_ICM 0x00000020
+#define ORBIS_HTTP_NB_EVENT_RESOLVED 0x00010000
+#define ORBIS_HTTP_NB_EVENT_RESOLVER_ERR 0x00020000
+
+#define ORBIS_HTTP_DEFAULT_RESOLVER_TIMEOUT (0) // libnet default
+#define ORBIS_HTTP_DEFAULT_RESOLVER_RETRY (0)   // libnet default
+#define ORBIS_HTTP_DEFAULT_CONNECT_TIMEOUT (30 * 1000 * 1000U)
+#define ORBIS_HTTP_DEFAULT_SEND_TIMEOUT (120 * 1000 * 1000U)
+#define ORBIS_HTTP_DEFAULT_RECV_TIMEOUT (120 * 1000 * 1000U)
+#define ORBIS_HTTP_DEFAULT_RECV_BLOCK_SIZE (1500U)
+#define ORBIS_HTTP_DEFAULT_RESPONSE_HEADER_MAX (5000U)
+#define ORBIS_HTTP_DEFAULT_REDIRECT_MAX (6U)
+#define ORBIS_HTTP_DEFAULT_TRY_AUTH_MAX (6U)
 
 enum OrbisHttpRequestMethod : s32 {
     ORBIS_HTTP_REQUEST_METHOD_INVALID = -1,
     ORBIS_HTTP_REQUEST_METHOD_GET = 0,
     ORBIS_HTTP_REQUEST_METHOD_POST = 1,
+    ORBIS_HTTP_REQUEST_METHOD_HEAD = 2,
+    ORBIS_HTTP_REQUEST_METHOD_OPTIONS = 3,
+    ORBIS_HTTP_REQUEST_METHOD_PUT = 4,
+    ORBIS_HTTP_REQUEST_METHOD_DELETE = 5,
+    ORBIS_HTTP_REQUEST_METHOD_TRACE = 6,
+    ORBIS_HTTP_REQUEST_METHOD_CONNECT = 7
 };
+
+typedef enum {
+    SCE_HTTP_CONTENTLEN_EXIST,
+    SCE_HTTP_CONTENTLEN_NOT_FOUND,
+    SCE_HTTP_CONTENTLEN_CHUNK_ENC
+} SceHttpContentLengthType;
 
 class RequestTemplate {
 public:
@@ -74,29 +111,31 @@ public:
         }
     }
 
-    u32 ReadData(char* dest, u32 size) {
+    s32 ReadData(char* dest, u64 size) {
 
-        if (result_body == nullptr || dest == nullptr || size == 0 || result_body_size == 0) {
-
+        if (!dest || size == 0 || !result_body || result_body_size == 0)
             return 0;
-        }
 
-        size_t start_index = static_cast<size_t>(current_result_read_chunk_index) * size;
-
-        if (start_index >= result_body_size) {
-
+        if (current_result_read_chunk_index >= result_body_size)
             return 0;
-        }
 
-        size_t remaining_bytes = result_body_size - start_index;
+        size_t remaining = result_body_size - current_result_read_chunk_index;
+        size_t to_copy = remaining < size ? remaining : size;
 
-        size_t bytes_to_copy = (remaining_bytes < size) ? remaining_bytes : size;
+        std::memcpy(dest, result_body + current_result_read_chunk_index, to_copy);
 
-        std::memcpy(dest, result_body + start_index, bytes_to_copy);
+        current_result_read_chunk_index += to_copy;
 
-        current_result_read_chunk_index++;
+        return static_cast<s32>(to_copy);
+    }
 
-        return static_cast<u32>(bytes_to_copy);
+    char* GetResultHeaders()
+    {
+        return result_headers;
+    }
+
+    u32 GetResultHeadersSize() {
+        return result_headers_size;
     }
 
     std::string GetUrl() const {
@@ -231,20 +270,30 @@ public:
 
         SetUrl(url_str);
     }
+    void freeData()
+    {
+        if (result_body)
+            delete[] result_body;
+
+        if (result_headers)
+            delete[] result_headers;
+    }
 
 private:
     std::future<void> request_future = {};
 
     char* result_body = nullptr;
-    u32 current_result_read_chunk_index = 0;
-    u32 result_body_size = 0;
+    s32 current_result_read_chunk_index = 0;
+    s32 result_body_size = 0;
+    char* result_headers;
+    s32 result_headers_size;
 
     OrbisHttpRequestMethod method = ORBIS_HTTP_REQUEST_METHOD_INVALID;
     std::string host = {};
     std::string path = {};
     u64 content_length = 0;
 
-    u32 status_code = -1; // check
+    s32 status_code = -1; // check
     bool is_sent = false;
     
     std::map<std::string, std::string> req_headers;
@@ -255,6 +304,8 @@ private:
     void _SendRequest() {
 
         httplib::Client cli(host);
+        cli.set_proxy("127.0.0.1", 8888);
+        
 
         httplib::Result response = {};
 
@@ -268,6 +319,7 @@ private:
         for (const auto& pair : req_headers) {
             headers.emplace(pair.first, pair.second);
         }
+        
 
         is_sent = true;
 
@@ -279,7 +331,11 @@ private:
         case ORBIS_HTTP_REQUEST_METHOD_POST:
 
             response = cli.Post(path, headers, static_cast<char*>(post_data),
-                                static_cast<size_t>(post_data_size), "application/octet-stream");
+                                static_cast<size_t>(post_data_size), "");
+            break;
+
+        case ORBIS_HTTP_REQUEST_METHOD_DELETE:
+            response = cli.Delete(path, headers);
             break;
 
         default:
@@ -289,17 +345,46 @@ private:
         }
 
         if (!response) {
-
+            LOG_ERROR(Lib_Http, "RESPONSE IS NULLPTR");
             return;
         }
 
         status_code = response->status;
 
-        if (response && response->status / 100 == 2) {
+        //if (response && response->status / 100 == 2) 
+        {
 
-            result_body_size = static_cast<u32>(response->body.size());
-            result_body = new char[result_body_size];
-            std::memcpy(result_body, response->body.data(), result_body_size);
+            result_body_size = static_cast<s32>(response->body.size());
+            if (result_body_size > 0) {
+                result_body = new char[result_body_size];
+                std::memcpy(result_body, response->body.data(), result_body_size);
+            } else
+                result_body = nullptr;
+
+            std::string str;
+            for (auto it : response->headers)
+            {
+                std::string header = it.first.c_str();
+                std::string value = it.second.c_str();
+                str.append(header);
+                str.append(": ");
+                str.append(value);
+                str.append("\r\n");
+            }
+            result_headers_size = static_cast<s32>(str.size());
+            if (result_headers_size > 0)
+            {
+                result_headers = new char[result_headers_size];
+                std::memcpy(result_headers, str.data(), result_headers_size);
+            }
+            else
+            {
+
+                result_headers = new char[1];
+                *result_headers = '\0';
+                result_headers_size = 1;
+            }
+            
         }
     }
 };
@@ -328,7 +413,7 @@ int PS4_SYSV_ABI sceHttpCookieFlush();
 int PS4_SYSV_ABI sceHttpCookieImport();
 int PS4_SYSV_ABI sceHttpCreateConnection();
 int PS4_SYSV_ABI sceHttpCreateConnectionWithURL(int tmplId, const char* url, bool enableKeepalive);
-int PS4_SYSV_ABI sceHttpCreateEpoll();
+int PS4_SYSV_ABI sceHttpCreateEpoll(int libhttpCtxId, OrbisHttpEpollHandle* eh);
 int PS4_SYSV_ABI sceHttpCreateRequest();
 int PS4_SYSV_ABI sceHttpCreateRequest2();
 int PS4_SYSV_ABI sceHttpCreateRequestWithURL(s32 conn_id, s32 method, const char* url,
@@ -343,10 +428,10 @@ int PS4_SYSV_ABI sceHttpDbgShowConnectionStat();
 int PS4_SYSV_ABI sceHttpDbgShowMemoryPoolStat();
 int PS4_SYSV_ABI sceHttpDbgShowRequestStat();
 int PS4_SYSV_ABI sceHttpDbgShowStat();
-int PS4_SYSV_ABI sceHttpDeleteConnection();
+int PS4_SYSV_ABI sceHttpDeleteConnection(int connId);
 int PS4_SYSV_ABI sceHttpDeleteRequest(s32 req_id);
 int PS4_SYSV_ABI sceHttpDeleteTemplate();
-int PS4_SYSV_ABI sceHttpDestroyEpoll();
+int PS4_SYSV_ABI sceHttpDestroyEpoll(int libhttpCtxId, OrbisHttpEpollHandle eh);
 int PS4_SYSV_ABI sceHttpGetAcceptEncodingGZIPEnabled();
 int PS4_SYSV_ABI sceHttpGetAllResponseHeaders(int reqId, char** header, u64* headerSize);
 int PS4_SYSV_ABI sceHttpGetAuthEnabled();
@@ -357,11 +442,11 @@ int PS4_SYSV_ABI sceHttpGetCookieEnabled();
 int PS4_SYSV_ABI sceHttpGetCookieStats();
 int PS4_SYSV_ABI sceHttpGetEpoll();
 int PS4_SYSV_ABI sceHttpGetEpollId();
-int PS4_SYSV_ABI sceHttpGetLastErrno();
+int PS4_SYSV_ABI sceHttpGetLastErrno(int reqId, int* errNum);
 int PS4_SYSV_ABI sceHttpGetMemoryPoolStats();
 int PS4_SYSV_ABI sceHttpGetNonblock();
 int PS4_SYSV_ABI sceHttpGetRegisteredCtxIds();
-int PS4_SYSV_ABI sceHttpGetResponseContentLength(u32 req_id, u64* out_content_length, u32* _flag);
+int PS4_SYSV_ABI sceHttpGetResponseContentLength(u32 req_id, u32* _flag, u64* out_content_length);
 int PS4_SYSV_ABI sceHttpGetStatusCode(s32 req_id, s32* status_code);
 int PS4_SYSV_ABI sceHttpInit(int libnetMemId, int libsslCtxId, u64 poolSize);
 int PS4_SYSV_ABI sceHttpParseResponseHeader(const char* header, u64 headerLen, const char* fieldStr,
@@ -433,7 +518,7 @@ int PS4_SYSV_ABI sceHttpUriParse(OrbisHttpUriElement* out, const char* srcUri, v
                                  u64* require, u64 prepare);
 int PS4_SYSV_ABI sceHttpUriSweepPath(char* dst, const char* src, u64 srcSize);
 int PS4_SYSV_ABI sceHttpUriUnescape(char* out, u64* require, u64 prepare, const char* in);
-int PS4_SYSV_ABI sceHttpWaitRequest();
+int PS4_SYSV_ABI sceHttpWaitRequest(OrbisHttpEpollHandle eh, OrbisHttpNBEvent* nbev, int maxevents,int timeout);
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym);
 } // namespace Libraries::Http

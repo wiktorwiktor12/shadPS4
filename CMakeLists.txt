@@ -1218,5 +1218,7 @@ if (ENABLE_DISCORD_RPC)
     target_link_libraries(shadps4 PRIVATE discord-rpc)
 endif()
 
+add_compile_options(-fexceptions)
+
 # Install rules
 install(TARGETS shadps4 BUNDLE DESTINATION .)
