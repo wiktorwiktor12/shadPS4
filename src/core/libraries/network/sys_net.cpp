@@ -458,13 +458,15 @@ s64 PS4_SYSV_ABI sys_recvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orbis
         LOG_ERROR(Lib_Net, "socket id is invalid = {}", s);
         return -1;
     }
-
-    LOG_INFO(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
-    flags = translate_freebsd_flags_to_linux(flags);
+    LOG_DEBUG(Lib_Net, "s = {} ({}), len = {}, flags = {:#x}", s, file->m_guest_name, len, flags);
     int returncode = file->socket->ReceivePacket(buf, len, flags, addr, paddrlen);
     if (returncode >= 0) {
         return returncode;
     }
+    if (*Libraries::Kernel::__Error() == ORBIS_NET_EWOULDBLOCK ||
+        *Libraries::Kernel::__Error() == ORBIS_NET_EAGAIN) {
+        return 0;
+        }
     LOG_ERROR(Lib_Net, "s = {} ({}) returned error code: {}", s, file->m_guest_name,
               (u32)*Libraries::Kernel::__Error());
     return -1;

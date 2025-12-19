@@ -432,7 +432,7 @@ int PS4_SYSV_ABI scePadReadHistory() {
 
 int PS4_SYSV_ABI scePadReadState(s32 handle, OrbisPadData* pData) {
     LOG_TRACE(Lib_Pad, "called");
-    if (handle == ORBIS_PAD_ERROR_DEVICE_NO_HANDLE) {
+    if (handle == ORBIS_PAD_ERROR_DEVICE_NO_HANDLE || handle <= 0) {
         return ORBIS_PAD_ERROR_INVALID_HANDLE;
     }
     auto* controller = Common::Singleton<GameController>::Instance();
@@ -445,13 +445,12 @@ int PS4_SYSV_ABI scePadReadState(s32 handle, OrbisPadData* pData) {
     pData->leftStick.x = state.axes[static_cast<int>(Input::Axis::LeftX)];
     pData->leftStick.y = state.axes[static_cast<int>(Input::Axis::LeftY)];
     pData->rightStick.x = state.axes[static_cast<int>(Input::Axis::RightX)];
-    pData->rightStick.x = state.axes[static_cast<int>(Input::Axis::RightX)];
     pData->rightStick.y = state.axes[static_cast<int>(Input::Axis::RightY)];
     pData->analogButtons.l2 = state.axes[static_cast<int>(Input::Axis::TriggerLeft)];
     pData->analogButtons.r2 = state.axes[static_cast<int>(Input::Axis::TriggerRight)];
-    pData->acceleration.x = state.acceleration.x * 0.098;
-    pData->acceleration.y = state.acceleration.y * 0.098;
-    pData->acceleration.z = state.acceleration.z * 0.098;
+    pData->acceleration.x = state.acceleration.x * 0.098f;
+    pData->acceleration.y = state.acceleration.y * 0.098f;
+    pData->acceleration.z = state.acceleration.z * 0.098f;
     pData->angularVelocity.x = state.angularVelocity.x;
     pData->angularVelocity.y = state.angularVelocity.y;
     pData->angularVelocity.z = state.angularVelocity.z;
@@ -460,10 +459,7 @@ int PS4_SYSV_ABI scePadReadState(s32 handle, OrbisPadData* pData) {
     // Only do this on handle 1 for now
     if (engine && handle == 1) {
         auto now = std::chrono::steady_clock::now();
-        float deltaTime =
-            std::chrono::duration_cast<std::chrono::microseconds>(now - controller->GetLastUpdate())
-                .count() /
-            1000000.0f;
+        float deltaTime = std::chrono::duration<float>(now - controller->GetLastUpdate()).count();
         controller->SetLastUpdate(now);
         Libraries::Pad::OrbisFQuaternion lastOrientation = controller->GetLastOrientation();
         Libraries::Pad::OrbisFQuaternion outputOrientation = {0.0f, 0.0f, 0.0f, 1.0f};
