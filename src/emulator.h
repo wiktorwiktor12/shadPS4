@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
+// SPDX-FileCopyrightText: Copyright 2025 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
@@ -26,7 +26,7 @@ public:
     Emulator();
     ~Emulator();
 
-    void Run(std::filesystem::path file, std::vector<std::string> args = {},
+    void Run(std::filesystem::path file, const std::vector<std::string> args = {},
              std::optional<std::filesystem::path> game_folder = {});
     void UpdatePlayTime(const std::string& serial);
 
@@ -43,7 +43,7 @@ private:
     void LoadSystemModules(const std::string& game_serial);
 
     Core::MemoryManager* memory;
-    Input::GameController* controller;
+    Input::GameControllers* controllers;
     Core::Linker* linker;
     std::unique_ptr<Frontend::WindowSDL> window;
     std::chrono::steady_clock::time_point start_time;

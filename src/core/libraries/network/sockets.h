@@ -45,6 +45,7 @@ typedef int net_socket;
 #include <map>
 #include <memory>
 #include <mutex>
+#include <vector>
 #include "net.h"
 
 namespace Libraries::Kernel {
@@ -144,6 +145,15 @@ struct P2PSocket : public Socket {
     int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) override;
     int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) override;
     int fstat(Libraries::Kernel::OrbisKernelStat* stat) override;
+
+private:
+    bool is_bound = false;
+    bool is_listening = false;
+    bool is_connected = false;
+
+    OrbisNetSockaddr bound_addr = {};
+    OrbisNetSockaddr peer_addr = {};
+    std::vector<std::vector<u8>> recv_queue;
     std::optional<net_socket> Native() override {
         return {};
     }

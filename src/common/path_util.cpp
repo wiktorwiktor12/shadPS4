@@ -10,6 +10,7 @@
 #ifdef __APPLE__
 #include <CoreFoundation/CFBundle.h>
 #include <dlfcn.h>
+#include <mach-o/dyld.h>
 #include <sys/param.h>
 #endif
 
@@ -22,7 +23,12 @@
 #else
 // This is the maximum number of UTF-8 code units permissible in all other OSes' file paths
 #define MAX_PATH 1024
+#include <unistd.h>
 #endif
+#endif
+
+#ifdef ENABLE_QT_GUI
+#include <QString>
 #endif
 
 namespace Common::FS {
@@ -84,31 +90,56 @@ static std::optional<std::filesystem::path> GetBundleParentDirectory() {
 #endif
 
 static auto UserPaths = [] {
-    // Try the portable user directory first.
-    auto user_dir = std::filesystem::current_path() / PORTABLE_DIR;
+    std::unordered_map<PathType, std::filesystem::path> paths;
+
+    std::filesystem::path user_dir; // declare once
+
+#if _WIN32
+    std::filesystem::path portable_dir = std::filesystem::current_path() / "user";
+
+    TCHAR appdata[MAX_PATH] = {0};
+    SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, appdata);
+    std::filesystem::path appdata_dir(appdata);
+    appdata_dir /= L"shadPS4";
+
+    bool portableExists = std::filesystem::exists(portable_dir);
+    bool appdataExists = std::filesystem::exists(appdata_dir);
+
+    if (portableExists) {
+        user_dir = portable_dir;
+    } else if (appdataExists) {
+        user_dir = appdata_dir;
+    } else {
+        user_dir = portable_dir;
+    }
+
+#elif defined(__APPLE__) || defined(__linux__)
+#ifdef __APPLE__
+#if defined(ENABLE_QT_GUI)
+    if (const auto bundle_dir = GetBundleParentDirectory()) {
+        std::filesystem::current_path(*bundle_dir);
+    }
+#endif
+#endif
+
+    // Try the portable user folder first
+    user_dir = std::filesystem::current_path() / PORTABLE_DIR;
     if (!std::filesystem::exists(user_dir)) {
-        // If it doesn't exist, use the standard path for the platform instead.
-        // NOTE: On Windows we currently just create the portable directory instead.
 #ifdef __APPLE__
         user_dir =
             std::filesystem::path(getenv("HOME")) / "Library" / "Application Support" / "shadPS4";
 #elif defined(__linux__)
         const char* xdg_data_home = getenv("XDG_DATA_HOME");
-        if (xdg_data_home != nullptr && strlen(xdg_data_home) > 0) {
+        if (xdg_data_home && strlen(xdg_data_home) > 0) {
             user_dir = std::filesystem::path(xdg_data_home) / "shadPS4";
         } else {
             user_dir = std::filesystem::path(getenv("HOME")) / ".local" / "share" / "shadPS4";
         }
-#elif _WIN32
-        TCHAR appdata[MAX_PATH] = {0};
-        SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, appdata);
-        user_dir = std::filesystem::path(appdata) / "shadPS4";
 #endif
     }
+#endif
 
-    std::unordered_map<PathType, fs::path> paths;
-
-    const auto create_path = [&](PathType shad_path, const fs::path& new_path) {
+    const auto create_path = [&](PathType shad_path, const std::filesystem::path& new_path) {
         std::filesystem::create_directory(new_path);
         paths.insert_or_assign(shad_path, new_path);
     };
@@ -127,21 +158,53 @@ static auto UserPaths = [] {
     create_path(PathType::MetaDataDir, user_dir / METADATA_DIR);
     create_path(PathType::CustomTrophy, user_dir / CUSTOM_TROPHY);
     create_path(PathType::CustomConfigs, user_dir / CUSTOM_CONFIGS);
+    create_path(PathType::CustomThemes, user_dir / CUSTOM_THEMES);
+    create_path(PathType::ModsFolder, user_dir / MODS_FOLDER);
     create_path(PathType::CacheDir, user_dir / CACHE_DIR);
+    create_path(PathType::CustomAudios, user_dir / AUDIO_DIR);
 
     std::ofstream notice_file(user_dir / CUSTOM_TROPHY / "Notice.txt");
     if (notice_file.is_open()) {
         notice_file
-            << "++++++++++++++++++++++++++++++++\n+ Custom Trophy Images / Sound "
-               "+\n++++++++++++++++++++++++++++++++\n\nYou can add custom images to the "
-               "trophies.\n*We recommend a square resolution image, for example 200x200, 500x500, "
-               "the same size as the height and width.\nIn this folder ('user\\custom_trophy'), "
-               "add the files with the following "
-               "names:\n\nbronze.png\nsilver.png\ngold.png\nplatinum.png\n\nYou can add a custom "
-               "sound for trophy notifications.\n*By default, no audio is played unless it is in "
-               "this folder and you are using the QT version.\nIn this folder "
-               "('user\\custom_trophy'), add the files with the following names:\n\ntrophy.mp3";
+            // clang-format off
+<< "++++++++++++++++++++++++++++++++\n"
+"+ Custom Trophy Images / Sound +\n"
+"++++++++++++++++++++++++++++++++\n\n"
+
+"You can add custom images to the trophies.\n"
+"*We recommend a square resolution image, for example 200x200, 500x500, the same size as the height and width.\n"
+"In this folder ('user\\custom_trophy'), add the files with the following names:\n\n"
+"bronze.png\n"
+"silver.png\n"
+"gold.png\n"
+"platinum.png\n\n"
+
+"You can add a custom sound for trophy notifications.\n"
+"*By default, no audio is played unless it is in this folder and you are using the QT version.\n"
+"In this folder ('user\\custom_trophy'), add the files with the following names:\n\n"
+
+"trophy.wav OR trophy.mp3";
+        // clang-format on
         notice_file.close();
+    }
+
+    std::ofstream audio_file(user_dir / AUDIO_DIR / "Notice.txt");
+    if (audio_file.is_open()) {
+        audio_file
+            // clang-format off
+<< "++++++++++++++++++++++++++++++++\n"
+"+ Custom Audios / Sounds +\n"
+"++++++++++++++++++++++++++++++++\n\n"
+
+"You can add custom sounds to the games menu.\n"
+"For the background music / tick movement navigation / start game sound.\n"
+"It has sound built in but if you add.\n"
+"In this folder ('user\\custom_audios'), the files with the following names:\n"
+"bgm.wav/tick.wav - bgm.mp3/tick.mp3 - play.wav/play.mp3.\n"
+"bgm for Background music, tick for movement navigation and play for start game sound.\n"
+"You can use custom audios for the games menu.";
+        // clang-format on
+        audio_file.close();
     }
 
     return paths;
@@ -166,6 +229,34 @@ bool ValidatePath(const fs::path& path) {
 #endif
 
     return true;
+}
+
+std::filesystem::path GetExecutablePath() {
+#if defined(_WIN32)
+    wchar_t buffer[MAX_PATH];
+    DWORD size = GetModuleFileNameW(NULL, buffer, MAX_PATH);
+    if (size == 0 || size == MAX_PATH) {
+        return {};
+    }
+    return std::filesystem::path(buffer);
+#elif defined(__APPLE__)
+    char buffer[PATH_MAX];
+    uint32_t size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) == 0) {
+        return std::filesystem::path(buffer);
+    }
+    return {};
+#elif defined(__linux__)
+    char buffer[PATH_MAX];
+    ssize_t size = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (size == -1) {
+        return {};
+    }
+    buffer[size] = '\0';
+    return std::filesystem::path(buffer);
+#else
+    return {};
+#endif
 }
 
 std::string PathToUTF8String(const std::filesystem::path& path) {
@@ -218,5 +309,23 @@ std::optional<fs::path> FindGameByID(const fs::path& dir, const std::string& gam
 
     return std::nullopt;
 }
+
+#ifdef ENABLE_QT_GUI
+void PathToQString(QString& result, const std::filesystem::path& path) {
+#ifdef _WIN32
+    result = QString::fromStdWString(path.wstring());
+#else
+    result = QString::fromStdString(path.string());
+#endif
+}
+
+std::filesystem::path PathFromQString(const QString& path) {
+#ifdef _WIN32
+    return std::filesystem::path(path.toStdWString());
+#else
+    return std::filesystem::path(path.toStdString());
+#endif
+}
+#endif
 
 } // namespace Common::FS

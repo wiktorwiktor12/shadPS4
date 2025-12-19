@@ -9,6 +9,7 @@
 #include <fmt/core.h>
 #include <fmt/xchar.h>
 #include <hwinfo/hwinfo.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include "common/config.h"
 #include "common/debug.h"
@@ -209,8 +210,8 @@ void Emulator::Run(std::filesystem::path file, std::vector<std::string> args,
     LOG_INFO(Config, "General isConnectedToNetwork: {}", Config::getIsConnectedToNetwork());
     LOG_INFO(Config, "General isPsnSignedIn: {}", Config::getPSNSignedIn());
     LOG_INFO(Config, "GPU isNullGpu: {}", Config::nullGpu());
-    LOG_INFO(Config, "GPU readbacks: {}", Config::readbacks());
-    LOG_INFO(Config, "GPU readbackLinearImages: {}", Config::readbackLinearImages());
+    LOG_INFO(Config, "GPU readbackSpeed: {}", magic_enum::enum_name(Config::readbackSpeed()));
+    LOG_INFO(Config, "GPU readbackLinearImages: {}", Config::getReadbackLinearImages());
     LOG_INFO(Config, "GPU directMemoryAccess: {}", Config::directMemoryAccess());
     LOG_INFO(Config, "GPU shouldDumpShaders: {}", Config::dumpShaders());
     LOG_INFO(Config, "GPU vblankFrequency: {}", Config::vblankFreq());
@@ -258,7 +259,7 @@ void Emulator::Run(std::filesystem::path file, std::vector<std::string> args,
 
     // Initialize components
     memory = Core::Memory::Instance();
-    controller = Common::Singleton<Input::GameController>::Instance();
+    controllers = Common::Singleton<Input::GameControllers>::Instance();
     linker = Common::Singleton<Core::Linker>::Instance();
 
     // Load renderdoc module
@@ -277,6 +278,10 @@ void Emulator::Run(std::filesystem::path file, std::vector<std::string> args,
                 LOG_ERROR(Loader, "Couldn't extract trophies");
             }
         }
+    }
+    if (Config::getShaderSkipsEnabled()) {
+        Config::SetSkippedShaderHashes("Default");
+        Config::SetSkippedShaderHashes(id);
     }
 
     std::string game_title = fmt::format("{} - {} <{}>", id, title, app_version);
@@ -300,7 +305,7 @@ void Emulator::Run(std::filesystem::path file, std::vector<std::string> args,
         }
     }
     window = std::make_unique<Frontend::WindowSDL>(
-        Config::getWindowWidth(), Config::getWindowHeight(), controller, window_title);
+        Config::getWindowWidth(), Config::getWindowHeight(), controllers, window_title);
 
     g_window = window.get();
 

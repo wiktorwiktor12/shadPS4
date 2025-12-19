@@ -18,7 +18,7 @@ public:
     void unlock() {
         pthread_mutex_unlock(&mutex);
     }
-    [[nodiscard]] bool try_lock() {
+    bool try_lock() {
         return pthread_mutex_trylock(&mutex) == 0;
     }
 

@@ -19,7 +19,7 @@
 
 namespace Libraries::Kernel {
 
-    static s32 g_sdk_version = -1;
+static s32 g_sdk_version = -1;
 static bool g_alias_dmem = false;
 
 u64 PS4_SYSV_ABI sceKernelGetDirectMemorySize() {

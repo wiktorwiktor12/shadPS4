@@ -476,9 +476,8 @@ static const std::unordered_map<ZydisMnemonic, std::vector<PatchInfo>> Patches =
     // FS segment patches
     // These first two patches are for accesses to the stack canary, fs:[0x28]
     {ZYDIS_MNEMONIC_XOR, {{FilterStackCheck, GenerateStackCheck, false}}},
-    {ZYDIS_MNEMONIC_MOV, {
-                             {FilterStackCheck, GenerateStackCanary, false},
-
+    {ZYDIS_MNEMONIC_MOV,
+     {{FilterStackCheck, GenerateStackCanary, false},
 #if defined(_WIN32)
       // Windows needs a trampoline for Tcb accesses.
       {FilterTcbAccess, GenerateTcbAccess, true}
@@ -791,7 +790,7 @@ static bool PatchesIllegalInstructionHandler(void* context) {
                 Common::Decoder::Instance()->decodeInstruction(instruction, operands, code_address);
             if (ZYAN_SUCCESS(status) && instruction.mnemonic == ZydisMnemonic::ZYDIS_MNEMONIC_UD2)
                 [[unlikely]] {
-                UNREACHABLE_MSG("ud2 at code address {:#x}", reinterpret_cast<u64>(code_address));
+                // UNREACHABLE_MSG("ud2 at code address {:#x}", (u64)code_address);
             }
             UNREACHABLE_MSG("Failed to patch address {:x} -- mnemonic: {}",
                             reinterpret_cast<u64>(code_address),

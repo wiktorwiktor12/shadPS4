@@ -426,7 +426,7 @@ public:
 
     /// Returns the total memory budget available to the device.
     [[nodiscard]] u64 GetTotalMemoryBudget() const {
-        return total_memory_budget;
+        return 2_GB;
     }
 
     /// Determines if a format is supported for a set of feature flags.

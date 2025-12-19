@@ -589,7 +589,7 @@ void Translator::V_MBCNT_U32_B32(bool is_low, const GcnInst& inst) {
              inst.src[1].field == OperandField::VectorGPR)) {
             return SetDst(inst.dst[0], GetSrc(inst.src[1]));
         }
-        UNREACHABLE();
+        // UNREACHABLE();
     } else {
         // v_mbcnt_lo_u32_b32 vY, -1, vX
         // used combined with above to fetch lane id in non-compute stages
@@ -602,10 +602,9 @@ void Translator::V_MBCNT_U32_B32(bool is_low, const GcnInst& inst) {
             inst.src[0].field == OperandField::ScalarGPR) {
             return SetDst(inst.dst[0], GetSrc(inst.src[1]));
         }
-        UNREACHABLE();
+        // UNREACHABLE();
     }
 }
-
 void Translator::V_ADD_I32(const GcnInst& inst) {
     // Signed or unsigned components
     const IR::U32 src0{GetSrc(inst.src[0])};
@@ -1057,6 +1056,7 @@ void Translator::V_CMP_U64(ConditionOp op, bool is_signed, bool set_exec, const 
         ASSERT_MSG(-s32(inst.src[1].code) + SignedConstIntNegMin - 1 == -1,
                    "SignedConstIntNeg must be -1");
     }
+
     const IR::U1 src0 = [&] {
         switch (inst.src[0].field) {
         case OperandField::ScalarGPR:

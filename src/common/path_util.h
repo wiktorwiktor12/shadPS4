@@ -7,6 +7,10 @@
 #include <optional>
 #include <vector>
 
+#ifdef ENABLE_QT_GUI
+class QString; // to avoid including <QString> in this header
+#endif
+
 namespace Common::FS {
 
 enum class PathType {
@@ -24,7 +28,10 @@ enum class PathType {
     MetaDataDir,    // Where game metadata (e.g. trophies and menu backgrounds) is stored.
     CustomTrophy,   // Where custom files for trophies are stored.
     CustomConfigs,  // Where custom files for different games are stored.
+    CustomThemes,   // Where custom themes for emulator are stored.
+    ModsFolder,     // Where mods for games are stored.
     CacheDir,       // Where pipeline and shader cache is stored.
+    CustomAudios,   // Where custom audios are stored.
 };
 
 constexpr auto PORTABLE_DIR = "user";
@@ -43,7 +50,10 @@ constexpr auto PATCHES_DIR = "patches";
 constexpr auto METADATA_DIR = "game_data";
 constexpr auto CUSTOM_TROPHY = "custom_trophy";
 constexpr auto CUSTOM_CONFIGS = "custom_configs";
+constexpr auto CUSTOM_THEMES = "custom_themes";
+constexpr auto MODS_FOLDER = "mods_folder";
 constexpr auto CACHE_DIR = "cache";
+constexpr auto AUDIO_DIR = "custom_audios";
 
 // Filenames
 constexpr auto LOG_FILE = "shad_log.txt";
@@ -96,6 +106,32 @@ constexpr auto LOG_FILE = "shad_log.txt";
  * @param new_path New filesystem path
  */
 void SetUserPath(PathType user_path, const std::filesystem::path& new_path);
+
+/**
+ * Gets the full path to the currently running executable.
+ *
+ * @returns The filesystem path of the executable, or empty if unavailable.
+ */
+[[nodiscard]] std::filesystem::path GetExecutablePath();
+
+#ifdef ENABLE_QT_GUI
+/**
+ * Converts an std::filesystem::path to a QString.
+ * The native underlying string of a path is wstring on Windows and string on POSIX.
+ *
+ * @param result The resulting QString
+ * @param path The path to convert
+ */
+void PathToQString(QString& result, const std::filesystem::path& path);
+
+/**
+ * Converts a QString to an std::filesystem::path.
+ * The native underlying string of a path is wstring on Windows and string on POSIX.
+ *
+ * @param path The path to convert
+ */
+[[nodiscard]] std::filesystem::path PathFromQString(const QString& path);
+#endif
 
 /**
  * Recursively searches for a game directory by its ID.

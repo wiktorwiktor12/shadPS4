@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <imgui.h>
+#include "common/types.h"
 
 #include "imgui_internal.h"
 

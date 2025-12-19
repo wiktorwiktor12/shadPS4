@@ -21,6 +21,10 @@ static ImeDialogState g_ime_dlg_state{};
 static ImeDialogUi g_ime_dlg_ui;
 
 static bool IsValidOption(OrbisImeOption option, OrbisImeType type) {
+
+    if (type == OrbisImeType::Mail)
+        return true;
+
     if (False(~option & (OrbisImeOption::MULTILINE |
                          OrbisImeOption::NO_AUTO_CAPITALIZATION /* NoAutoCompletion */))) {
         return false;
@@ -116,8 +120,8 @@ Error PS4_SYSV_ABI sceImeDialogGetPanelSize(const OrbisImeDialogParam* param, u3
 }
 
 Error PS4_SYSV_ABI sceImeDialogGetPanelSizeExtended(const OrbisImeDialogParam* param,
-                                                  const OrbisImeParamExtended* extended, u32* width,
-                                                  u32* height) {
+                                                    const OrbisImeParamExtended* extended,
+                                                    u32* width, u32* height) {
     LOG_INFO(Lib_ImeDialog, "called");
 
     if (!width || !height) {

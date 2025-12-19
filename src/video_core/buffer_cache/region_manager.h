@@ -5,7 +5,6 @@
 
 #include "common/config.h"
 #include "common/div_ceil.h"
-#include "common/logging/log.h"
 
 #ifdef __linux__
 #include "common/adaptive_mutex.h"
@@ -46,6 +45,10 @@ public:
 
     VAddr GetCpuAddr() const {
         return cpu_addr;
+    }
+
+    u16& NumFlushes(u32 page) {
+        return flushes[page];
     }
 
     static constexpr size_t SanitizeAddress(size_t address) {
@@ -95,8 +98,21 @@ public:
         }
         if constexpr (type == Type::CPU) {
             UpdateProtection<!enable, false>();
-        } else if (Config::readbacks()) {
+        } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Fast) {
             UpdateProtection<enable, true>();
+        } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Disable) {
+            UpdateProtection<!enable, false>();
+        } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Unsafe) {
+            UpdateProtection<!enable, false>();
+        } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Low) {
+            UpdateProtection<enable, true>();
+        } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Default) {
+            UpdateProtection<enable, true>();
+        }
+        if (Config::readbackSpeed() != Config::ReadbackSpeed::Low) {
+            for (size_t page = start_page; page != end_page && !enable; ++page) {
+                ++flushes[page];
+            }
         }
     }
 
@@ -126,7 +142,15 @@ public:
             bits.UnsetRange(start_page, end_page);
             if constexpr (type == Type::CPU) {
                 UpdateProtection<true, false>();
-            } else if (Config::readbacks()) {
+            } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Disable) {
+                UpdateProtection<true, false>();
+            } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Unsafe) {
+                UpdateProtection<false, false>();
+            } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Fast) {
+                UpdateProtection<false, true>();
+            } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Low) {
+                UpdateProtection<false, true>();
+            } else if (Config::readbackSpeed() == Config::ReadbackSpeed::Default) {
                 UpdateProtection<false, true>();
             }
         }
@@ -190,6 +214,7 @@ private:
     RegionBits gpu;
     RegionBits writeable;
     RegionBits readable;
+    RegionWords flushes{};
 };
 
 } // namespace VideoCore

@@ -166,7 +166,9 @@ std::tuple<u32, u32, bool> AjmAt9Decoder::ProcessData(std::span<u8>& in_buf,
     default:
         UNREACHABLE();
     }
-    ASSERT_MSG(ret == At9Status::ERR_SUCCESS, "Atrac9Decode failed ret = {:#x}", ret);
+
+    // ASSERT_MSG(ret == At9Status::ERR_SUCCESS, "Atrac9Decode failed ret = {:#x}", ret);
+
     in_buf = in_buf.subspan(bytes_used);
 
     m_superframe_bytes_remain -= bytes_used;

@@ -679,9 +679,10 @@ s32 PS4_SYSV_ABI posix_stat(const char* path, OrbisKernelStat* sb) {
 s32 PS4_SYSV_ABI sceKernelStat(const char* path, OrbisKernelStat* sb) {
     s32 result = posix_stat(path, sb);
     if (result < 0) {
-        LOG_ERROR(Kernel_Fs, "error = {}", *__Error());
+        LOG_ERROR(Kernel_Fs, "sceKernelStat: error = {}, path = {}", *__Error(), path);
         return ErrnoToSceKernelError(*__Error());
     }
+    LOG_DEBUG(Kernel_Fs, "sceKernelStat: success, path = {}", path);
     return result;
 }
 
@@ -1201,7 +1202,7 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set_posix* readfds, fd_set_posix* wri
             *__Error() = POSIX_EBADF;
             return -1;
         }
-        LOG_DEBUG(Kernel_Fs, "file->type {}", (int)file->type.load());
+
         s32 native_fd = -1;
         switch (file->type) {
         case Core::FileSys::FileType::Regular:
@@ -1241,9 +1242,6 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set_posix* readfds, fd_set_posix* wri
                 FD_SET(native_fd, &except_host);
             }
             socket_max_fd = std::max(socket_max_fd, native_fd);
-            LOG_DEBUG(Kernel_Fs,
-                     "socket want_read {} want_write {}, want_except {} native_fd {}, max_fd {}",
-                     (int)want_read, (int)want_write, (int)want_except, native_fd, socket_max_fd);
         }
 
         if (native_fd == -1) {
@@ -1259,7 +1257,7 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set_posix* readfds, fd_set_posix* wri
               read_host.fd_count, write_host.fd_count, except_host.fd_count);
 
     if (read_host.fd_count == 0 && write_host.fd_count == 0 && except_host.fd_count == 0) {
-        LOG_WARNING(Kernel_Fs, "No sockets in fd_sets, select() will return immediately");
+        LOG_DEBUG(Kernel_Fs, "No sockets in fd_sets, select() will return immediately");
     }
 
     if (readfds) {
