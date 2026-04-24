@@ -6,15 +6,16 @@
 #include "core/libraries/error_codes.h"
 #include "core/libraries/libs.h"
 #include "mouse.h"
-#include <SDL3/SDL_mouse.h>
-#include <sdl_window.h>
+#include "SDL3/SDL_mouse.h"
+#include "sdl_window.h"
+#include "input/input_handler.h"
 
-#define SCE_MOUSE_BUTTON_PRIMARY 0x00000001
-#define SCE_MOUSE_BUTTON_SECONDARY 0x00000002
-#define SCE_MOUSE_BUTTON_OPTIONAL 0x00000004
+#include <queue>
+
 #define SCE_MOUSE_DUMMY_HANDLE 67
 
 extern Frontend::WindowSDL* g_window;
+std::queue<SceMouseData> g_mouse_state;
 
 namespace Libraries::Mouse {
 
@@ -76,31 +77,21 @@ int PS4_SYSV_ABI sceMouseRead(int handle, SceMouseData* pData, int num) {
     if (!pData || num <= 0)
         return ORBIS_FAIL;
 
-    float dx, dy;
-    uint32_t sdlButtons = SDL_GetRelativeMouseState(&dx, &dy);
+    int count = 0;
 
-    auto now = std::chrono::high_resolution_clock::now();
-    uint64_t timestamp =
-        std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+    std::lock_guard<std::mutex> lock(Input::g_mouse_mutex);
 
-    SceMouseData& data = pData[0];
-    memset(&data, 0, sizeof(SceMouseData));
+    while (count < num && !Input::g_mouse_state.empty()) {
+        SceMouseData& src = Input::g_mouse_state.front();
+        SceMouseData& dst = pData[count];
 
-    data.timestamp = timestamp;
-    data.connected = true;
+        dst = src;
 
-    data.xAxis = static_cast<int32_t>(dx);
-    data.yAxis = static_cast<int32_t>(dy);
-    data.wheel = 0; // ? event
+        Input::g_mouse_state.pop();
+        count++;
+    }
 
-    if (sdlButtons & SDL_BUTTON_LMASK)
-        data.buttons |= SCE_MOUSE_BUTTON_PRIMARY;
-    if (sdlButtons & SDL_BUTTON_RMASK)
-        data.buttons |= SCE_MOUSE_BUTTON_SECONDARY;
-    if (sdlButtons & SDL_BUTTON_X1MASK)
-        data.buttons |= SCE_MOUSE_BUTTON_OPTIONAL;
-
-    return 1;
+    return count;
 }
 
 int PS4_SYSV_ABI sceMouseSetHandType() {

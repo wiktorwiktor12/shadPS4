@@ -31,6 +31,10 @@
 #include <core/libraries/ime/ime_common.h>
 #include <core/libraries/ime/ime.h>
 
+#define SCE_MOUSE_BUTTON_PRIMARY 0x00000001
+#define SCE_MOUSE_BUTTON_SECONDARY 0x00000002
+#define SCE_MOUSE_BUTTON_OPTIONAL 0x00000004
+
 namespace Frontend {
 
 using namespace Libraries::Pad;
@@ -198,6 +202,7 @@ void WindowSDL::WaitEvent() {
         is_shown = event.type == SDL_EVENT_WINDOW_EXPOSED;
         OnResize();
         break;
+    case SDL_EVENT_MOUSE_MOTION:
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
     case SDL_EVENT_MOUSE_WHEEL:
@@ -706,6 +711,54 @@ void WindowSDL::OnKeyboardMouseInput(const SDL_Event* event) {
     if (event->type == SDL_EVENT_MOUSE_WHEEL) {
         const SDL_Event* copy = new SDL_Event(*event);
         SDL_AddTimer(33, wheelOffCallback, (void*)copy);
+    }
+
+    if (event->type == SDL_EVENT_MOUSE_MOTION || event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+        event->type == SDL_EVENT_MOUSE_BUTTON_UP || event->type == SDL_EVENT_MOUSE_WHEEL) {
+        SceMouseData mouseData{};
+        mouseData.timestamp = SDL_GetTicks();
+        mouseData.connected = true;
+        
+        const SDL_MouseButtonFlags buttonState = SDL_GetMouseState(nullptr, nullptr);
+        if (buttonState & SDL_BUTTON_MASK(SDL_BUTTON_LEFT))
+            mouseData.buttons |= SCE_MOUSE_BUTTON_PRIMARY;
+        if (buttonState & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))
+            mouseData.buttons |= SCE_MOUSE_BUTTON_SECONDARY;
+        if (buttonState & SDL_BUTTON_MASK(SDL_BUTTON_X1))
+            mouseData.buttons |= SCE_MOUSE_BUTTON_OPTIONAL;
+
+        switch (event->type) {
+        case SDL_EVENT_MOUSE_MOTION:
+            mouseData.xAxis = static_cast<int32_t>(event->motion.xrel);
+            mouseData.yAxis = static_cast<int32_t>(event->motion.yrel);
+            break;
+        case SDL_EVENT_MOUSE_WHEEL:
+            mouseData.wheel = static_cast<int32_t>(event->wheel.y);
+            mouseData.tilt = static_cast<int32_t>(event->wheel.x);
+            break;
+        default:
+            break;
+        }
+
+        std::lock_guard<std::mutex> lock(Input::g_mouse_mutex);
+
+        bool merged = false;
+        if (event->type == SDL_EVENT_MOUSE_MOTION && !Input::g_mouse_state.empty()) {
+            SceMouseData& back = Input::g_mouse_state.back();
+            if (back.buttons == mouseData.buttons && back.wheel == 0 && back.tilt == 0) {
+                back.xAxis += mouseData.xAxis;
+                back.yAxis += mouseData.yAxis;
+                back.timestamp = mouseData.timestamp;
+                merged = true;
+            }
+        }
+
+        if (!merged) {
+            if (Input::g_mouse_state.size() >= 8) {
+                Input::g_mouse_state.pop();
+            }
+            Input::g_mouse_state.push(mouseData);
+        }
     }
 
     // add/remove it from the list

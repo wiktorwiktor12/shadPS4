@@ -19,6 +19,7 @@
 #include "input/controller.h"
 #include <queue>
 #include <core/libraries/ime/ime_common.h>
+#include <core/libraries/mouse/mouse_common.h>
 
 // +1 and +2 is taken
 #define SDL_MOUSE_WHEEL_UP SDL_EVENT_MOUSE_WHEEL + 3
@@ -621,6 +622,8 @@ struct GlobalKeyboardState {
     }
 };
 extern GlobalKeyboardState g_keyboard_state;
+extern std::queue<SceMouseData> g_mouse_state;
+extern std::mutex g_mouse_mutex;
 
 enum class OrbisImeKeycodeEnum : u16 {
     NoEvent = 0x00,
