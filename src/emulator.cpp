@@ -402,10 +402,16 @@ void Emulator::Run(std::filesystem::path file, std::vector<std::string> args,
 
     // Mounting temp folders
     const auto& mount_temp_dir = Common::FS::GetUserPath(Common::FS::PathType::TempDataDir) / id;
-    if (std::filesystem::exists(mount_temp_dir)) {
+    /* if (std::filesystem::exists(mount_temp_dir)) {
         // Temp folder should be cleared on each boot.
-        std::filesystem::remove_all(mount_temp_dir);
-    }
+        try
+        {
+            std::filesystem::remove_all(mount_temp_dir);
+        
+        } catch (const std::filesystem::filesystem_error& e) {
+            LOG_ERROR(Loader, "Failed to clear temp directory: {}", e.what());
+        }
+    }*/
     std::filesystem::create_directory(mount_temp_dir);
     mnt->Mount(mount_temp_dir, "/temp0");
     mnt->Mount(mount_temp_dir, "/temp");
