@@ -20,11 +20,13 @@
 #include "core/linker.h"
 #include "core/memory.h"
 #include "core/tls.h"
+#include "core/file_sys/fs.h"
 #include "ipc/ipc.h"
 
 #ifndef _WIN32
 #include <signal.h>
 #endif
+
 
 namespace Core {
 
@@ -146,6 +148,9 @@ void Linker::Execute(const std::vector<std::string>& args) {
                 params.argv[i] = args[i].c_str();
             }
         }
+        auto* mnt = Common::Singleton<Core::FileSys::MntPoints>::Instance();
+
+        LoadAndStartModule(mnt->GetHostPath("/app0/sce_module/Orbit.prx"),0,0,0);
         params.entry_addr = module->GetEntryAddress();
         RunMainEntry(&params);
     });

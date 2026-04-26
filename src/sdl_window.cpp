@@ -761,8 +761,9 @@ void WindowSDL::OnKeyboardMouseInput(const SDL_Event* event) {
         }
     }
 
+    SDL_Keymod mod = event->key.mod;
     // add/remove it from the list
-    if (!should_ignore_custom_mappings)
+    if (!should_ignore_custom_mappings || (mod & SDL_KMOD_LCTRL && mod & SDL_KMOD_LALT))
     {
         bool inputs_changed = Input::UpdatePressedKeys(input_event);
 

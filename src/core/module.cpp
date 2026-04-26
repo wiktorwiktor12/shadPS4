@@ -96,8 +96,9 @@ Module::Module(Core::MemoryManager* memory_, const std::filesystem::path& file_,
 Module::~Module() = default;
 
 s32 Module::Start(u64 args, const void* argp, void* param) {
-    LOG_INFO(Core_Linker, "Module started : {}", name);
-    const VAddr addr = dynamic_info.init_virtual_addr + GetBaseAddress();
+    //const VAddr addr = dynamic_info.init_virtual_addr + GetBaseAddress();
+    const VAddr addr = GetBaseAddress() + elf.GetElfEntry();
+    LOG_INFO(Core_Linker, "Module started : {} @ {}", name, addr);
     return reinterpret_cast<EntryFunc>(addr)(args, argp, param);
 }
 
